@@ -1,18 +1,21 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "ui/CrockPotLookAndFeel.h"
+#include "ui/CookPage.h"
+#include "ui/SplitPage.h"
 
 //==============================================================================
-/*  The Crock-Pot — editor (M2: Simmer Dial + chain strip).
+/*  The Crock-Pot — editor shell (M3 layout: header + tabbed pages).
 
-    D3: native JUCE Components ONLY. Per-block control panels arrive with the
-    real UI in M3; until then block knobs live in Live's device panel, and
-    this window owns the two things Live can't do for us: the Simmer macro
-    front-and-center, and drag-free chain reordering.
+    D3: native JUCE Components ONLY. Layout follows the patterns the loved
+    multi-FX plugins share (RC-20 module bank + master macro; Output-style
+    submodule pages — see 05_Assets/ui-design notes):
+      header: title · COOK/SPLIT tabs · Shake the Pot · Output knob
+      COOK:   art + Simmer + focused block panel + reorderable chain strip
+      SPLIT:  drop a loop → background split → Leftovers on disk (M4b)
 */
-class CrockPotEditor final : public juce::AudioProcessorEditor,
-                             private juce::ValueTree::Listener,
-                             private juce::Timer
+class CrockPotEditor final : public juce::AudioProcessorEditor
 {
 public:
     explicit CrockPotEditor (CrockPotProcessor&);
@@ -22,32 +25,20 @@ public:
     void resized() override;
 
 private:
-    void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override;
-    void valueTreeRedirected (juce::ValueTree&) override;
-    void timerCallback() override;    // 30 fps: steam drift, ember glow, power tints
-
-    void refreshChainButtons();       // relabel from processor order
-    void moveSelected (int delta);    // shift selected block left/right
+    void setPage (int newPage);
+    void shakeThePot();
 
     CrockPotProcessor& processorRef;
+    CrockPotLookAndFeel lookAndFeel;
 
-    // ---- pizzazz state (message thread only) --------------------------------
-    float steamPhase = 0.0f;          // drives the steam sway
-    float glowLevel  = 0.0f;          // smoothed audio level for the ember
-    std::atomic<float>* simmerRaw = nullptr;
-    std::array<std::atomic<float>*, CrockPotProcessor::numBlocks> bypassRaw {};
-    std::array<int, CrockPotProcessor::numBlocks> slotToBlock { 0,1,2,3,4,5,6,7 };
-    std::array<int, CrockPotProcessor::numBlocks> lastTint { -1,-1,-1,-1,-1,-1,-1,-1 };
+    juce::TextButton cookTab { "COOK" }, splitTab { "SPLIT" };
+    juce::TextButton shakeButton { "Shake the Pot" };
+    juce::Slider outputKnob;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputAttachment;
 
-    juce::Slider simmerDial, outputSlider;
-    juce::Label simmerLabel, outputLabel, hintLabel;
-
-    std::array<juce::TextButton, CrockPotProcessor::numBlocks> chainButtons;
-    juce::TextButton moveLeft { "<" }, moveRight { ">" };
-    int selectedSlot = -1;
-
-    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
-    std::unique_ptr<SliderAttachment> simmerAttachment, outputAttachment;
+    CookPage cookPage;
+    SplitPage splitPage;
+    int currentPage = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CrockPotEditor)
 };
