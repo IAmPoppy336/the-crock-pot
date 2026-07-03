@@ -107,6 +107,12 @@ target_compile_definitions(SharedCode
     PRODUCT_NAME_WITHOUT_VERSION="Crock-Pot"
 )
 
+# MSVC: our sources are UTF-8 (the editor draws "·" and "—"). Without this flag
+# MSVC assumes Windows-1252 and mangles those into mojibake — M0 bug #1, found
+# by Poppy in the first real Live 12 load (2026-07-02). Clang/AppleClang already
+# assume UTF-8, so mac builds were never affected.
+target_compile_options(SharedCode INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+
 target_link_libraries(SharedCode
     INTERFACE
     juce_audio_utils

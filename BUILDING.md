@@ -86,7 +86,7 @@ Then in Live 12: **Options → Preferences → Plug-Ins** → make sure **VST3**
 
 Run in Ableton Live 12. Tick every box; report any miss to Pi with what you saw.
 
-- [ ] The plugin shows up in the browser under **Plug-Ins → VST3 → Poppys Kitchen → The Crock-Pot** — listed as an *audio effect* (it should refuse to sit on a MIDI track).
+- [ ] The plugin shows up in the browser under **Plug-Ins → VST3 → Poppys Kitchen → The Crock-Pot** — listed as an *audio effect*. (Note: Live happily lets audio effects sit on MIDI tracks too — they process the audio an instrument makes upstream. That's normal, not a bug. The real tell it registered correctly: it appears under Plug-Ins as an effect, not an instrument.)
 - [ ] Drop it on an audio track playing a loop → **sound passes through unchanged** (no volume change, no glitches, no silence).
 - [ ] Double-click the device's wrench icon → the window opens: **brown kitchen, a pot, three curls of steam, "The Crock-Pot"**, version stamp bottom-right.
 - [ ] Drag the window corner → it **resizes smoothly**, nothing blurry or clipped.
