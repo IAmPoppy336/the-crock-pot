@@ -67,6 +67,10 @@ public:
     juce::String getChainOrderString() const;
     void setChainOrderString (const juce::String& csv);   // message thread only
 
+    //  Recipe save/load (message thread): full state as XML text.
+    juce::String saveStateToXml() const;
+    bool restoreFromXml (const juce::String& xmlText);   // tolerant; false = bad file
+
     //  Editor eye-candy feed: block peak level, one relaxed atomic store per
     //  block. Written on the audio thread (no alloc/lock), read by the UI timer.
     float getOutputLevel() const { return outputLevel.load (std::memory_order_relaxed); }
@@ -90,9 +94,12 @@ private:
                            *revWindow, *revMix, *revBypass,
                            *delayTime, *delayFeedback, *delayTone, *delayMix, *delayBypass,
                            *verbSize, *verbDamp, *verbWidth, *verbMix, *verbBypass,
+                           *delaySync, *delayDiv, *tremSync, *tremDiv,
                            *simmer, *monoFreq, *monoOn, *outputTrim;
     };
     Raw rp {};
+
+    double currentBpm = 120.0;   // audio-thread only; refreshed from the playhead
 
     //==========================================================================
     MonoMaker monoMaker;

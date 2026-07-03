@@ -22,6 +22,8 @@ public:
         addAndMakeVisible (simmerDial);
         simmerAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
             processorRef.apvts, params::simmer, simmerDial);
+        if (auto* p = processorRef.apvts.getParameter (params::simmer))
+            simmerDial.setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
 
         simmerLabel.setText ("SIMMER", juce::dontSendNotification);
         simmerLabel.setJustificationType (juce::Justification::centred);
@@ -40,6 +42,8 @@ public:
         addAndMakeVisible (monoFreq);
         monoFreqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
             processorRef.apvts, params::monoFreq, monoFreq);
+        if (auto* p = processorRef.apvts.getParameter (params::monoFreq))
+            monoFreq.setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
 
         // ---- chain strip -------------------------------------------------------------
         for (int i = 0; i < CrockPotProcessor::numBlocks; ++i)

@@ -17,12 +17,26 @@ CrockPotEditor::CrockPotEditor (CrockPotProcessor& p)
     shakeButton.onClick = [this] { shakeThePot(); };
     addAndMakeVisible (shakeButton);
 
+    unshakeButton.onClick = [this] { unshake(); };
+    unshakeButton.setEnabled (false);   // nothing to undo yet
+    addAndMakeVisible (unshakeButton);
+
+    saveButton.onClick = [this] { saveRecipe(); };
+    loadButton.onClick = [this] { loadRecipe(); };
+    addAndMakeVisible (saveButton);
+    addAndMakeVisible (loadButton);
+
     outputKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     outputKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     outputKnob.setPopupDisplayEnabled (true, true, this);
     addAndMakeVisible (outputKnob);
     outputAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         processorRef.apvts, params::outputTrim, outputKnob);
+
+    if (auto* p = processorRef.apvts.getParameter (params::outputTrim))
+        outputKnob.setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
+
+    startTimerHz (15);   // header meter only
 
     // ---- pages ------------------------------------------------------------------
     addAndMakeVisible (cookPage);
@@ -54,11 +68,63 @@ void CrockPotEditor::setPage (int newPage)
 }
 
 //==============================================================================
+void CrockPotEditor::unshake()
+{
+    if (shakeUndoState.isValid())
+    {
+        processorRef.apvts.replaceState (shakeUndoState.createCopy());
+        unshakeButton.setEnabled (false);
+    }
+}
+
+void CrockPotEditor::saveRecipe()
+{
+    chooser = std::make_unique<juce::FileChooser> (
+        "Save this recipe", juce::File(), "*.crockpotrecipe");
+
+    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                        | juce::FileBrowserComponent::canSelectFiles,
+        [this] (const juce::FileChooser& fc)
+        {
+            auto file = fc.getResult();
+            if (file == juce::File()) return;
+            if (! file.hasFileExtension ("crockpotrecipe"))
+                file = file.withFileExtension ("crockpotrecipe");
+            file.replaceWithText (processorRef.saveStateToXml());
+        });
+}
+
+void CrockPotEditor::loadRecipe()
+{
+    chooser = std::make_unique<juce::FileChooser> (
+        "Load a recipe", juce::File(), "*.crockpotrecipe");
+
+    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                        | juce::FileBrowserComponent::canSelectFiles,
+        [this] (const juce::FileChooser& fc)
+        {
+            if (fc.getResult().existsAsFile())
+                processorRef.restoreFromXml (fc.getResult().loadFileAsString());
+        });
+}
+
+void CrockPotEditor::timerCallback()
+{
+    meterLevel = 0.8f * meterLevel
+               + 0.2f * juce::jlimit (0.0f, 1.0f, processorRef.getOutputLevel());
+    if (! meterArea.isEmpty())
+        repaint (meterArea);
+}
+
+//==============================================================================
 void CrockPotEditor::shakeThePot()
 {
     //  Shake the Pot v1 (M3): randomize block character + power, musically
     //  bounded. Never touches Simmer, Mono, Output, or chain order.
     //  Per-block locks are the M3-polish follow-up.
+    shakeUndoState = processorRef.apvts.copyState().createCopy();   // for Unshake
+    unshakeButton.setEnabled (true);
+
     auto& rng = juce::Random::getSystemRandom();
 
     auto set01 = [this, &rng] (const char* id, float lo, float hi)
@@ -119,17 +185,24 @@ void CrockPotEditor::resized()
     auto r = getLocalBounds();
     auto header = r.removeFromTop (54).reduced (10, 8);
 
-    // right side: output knob + shake
-    outputKnob.setBounds (header.removeFromRight (44));
+    // right side: meter + output knob, then recipe + shake buttons
+    outputKnob.setBounds (header.removeFromRight (42));
+    meterArea = header.removeFromRight (8).reduced (0, 6);
     header.removeFromRight (6);
-    shakeButton.setBounds (header.removeFromRight (118).reduced (0, 4));
-    header.removeFromRight (10);
+    unshakeButton.setBounds (header.removeFromRight (66).reduced (0, 6));
+    header.removeFromRight (4);
+    shakeButton.setBounds (header.removeFromRight (100).reduced (0, 4));
+    header.removeFromRight (8);
+    loadButton.setBounds (header.removeFromRight (50).reduced (0, 6));
+    header.removeFromRight (4);
+    saveButton.setBounds (header.removeFromRight (50).reduced (0, 6));
+    header.removeFromRight (8);
 
     // centre-left: tabs after the title space
-    header.removeFromLeft (170);   // title painted here
-    cookTab.setBounds  (header.removeFromLeft (76).reduced (0, 4));
+    header.removeFromLeft (150);   // title painted here
+    cookTab.setBounds  (header.removeFromLeft (70).reduced (0, 4));
     header.removeFromLeft (4);
-    splitTab.setBounds (header.removeFromLeft (76).reduced (0, 4));
+    splitTab.setBounds (header.removeFromLeft (70).reduced (0, 4));
 
     cookPage.setBounds (r);
     splitPage.setBounds (r);
@@ -153,10 +226,23 @@ void CrockPotEditor::paint (juce::Graphics& g)
                 juce::Justification::topLeft, false);
     g.setColour (cream.withAlpha (0.5f));
     g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText (juce::String ("v") + VERSION + " · cook & split",
+    g.drawText (juce::String ("v") + VERSION + " - cook & split",
                 header, juce::Justification::topLeft, false);
 
     // header divider
     g.setColour (lidShine.withAlpha (0.25f));
     g.drawHorizontalLine (54, 8.0f, (float) getWidth() - 8.0f);
+
+    // output meter (fed by the audio thread's atomic, painted at 15 fps)
+    if (! meterArea.isEmpty())
+    {
+        auto m = meterArea.toFloat();
+        g.setColour (knobBrown.darker (0.4f));
+        g.fillRoundedRectangle (m, 3.0f);
+
+        const float fill = juce::jlimit (0.0f, 1.0f, meterLevel);
+        auto lit = m.withTrimmedTop (m.getHeight() * (1.0f - fill));
+        g.setColour (fill > 0.9f ? ember : lidShine);
+        g.fillRoundedRectangle (lit, 3.0f);
+    }
 }

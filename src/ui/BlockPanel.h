@@ -42,9 +42,36 @@ public:
             k->label.setColour (juce::Label::textColourId, crockpot::cream.withAlpha (0.8f));
             k->attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
                 processorRef.apvts, row.id, k->slider);
+
+            if (auto* param = processorRef.apvts.getParameter (row.id))
+                k->slider.setDoubleClickReturnValue (true,
+                    param->convertFrom0to1 (param->getDefaultValue()));
             addAndMakeVisible (k->slider);
             addAndMakeVisible (k->label);
             knobs.push_back (std::move (k));
+        }
+
+        // ---- tempo sync (delay + tremolo only) -----------------------------------
+        syncButton.reset();
+        divBox.reset();
+        syncAttachment.reset();
+        divAttachment.reset();
+
+        const char* syncId = (block == 6 ? params::delaySync : block == 4 ? params::tremSync : nullptr);
+        const char* divId  = (block == 6 ? params::delayDiv  : block == 4 ? params::tremDiv  : nullptr);
+
+        if (syncId != nullptr)
+        {
+            syncButton = std::make_unique<juce::ToggleButton> ("Sync");
+            addAndMakeVisible (*syncButton);
+            syncAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+                processorRef.apvts, syncId, *syncButton);
+
+            divBox = std::make_unique<juce::ComboBox>();
+            divBox->addItemList (params::divisionNames, 1);   // ids 1..N (attachment maps)
+            addAndMakeVisible (*divBox);
+            divAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+                processorRef.apvts, divId, *divBox);
         }
 
         // ---- power pill (inverted bypass) ---------------------------------------
@@ -79,6 +106,12 @@ public:
 
         auto header = r.removeFromTop (26);
         power.setBounds (header.removeFromRight (64).reduced (2));
+        if (divBox != nullptr)
+        {
+            divBox->setBounds (header.removeFromRight (70).reduced (2));
+            if (syncButton != nullptr)
+                syncButton->setBounds (header.removeFromRight (66).reduced (2));
+        }
         title.setBounds (header);
 
         if (knobs.empty())
@@ -147,6 +180,11 @@ private:
     juce::ToggleButton power;
     std::unique_ptr<juce::ParameterAttachment> powerAttachment;
     std::vector<std::unique_ptr<Knob>> knobs;
+
+    std::unique_ptr<juce::ToggleButton> syncButton;
+    std::unique_ptr<juce::ComboBox> divBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> divAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlockPanel)
 };

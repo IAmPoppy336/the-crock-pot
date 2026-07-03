@@ -26,6 +26,7 @@ CrockPotProcessor::CrockPotProcessor()
            r (params::revWindow), r (params::revMix), r (params::revBypass),
            r (params::delayTime), r (params::delayFeedback), r (params::delayTone), r (params::delayMix), r (params::delayBypass),
            r (params::verbSize), r (params::verbDamp), r (params::verbWidth), r (params::verbMix), r (params::verbBypass),
+           r (params::delaySync), r (params::delayDiv), r (params::tremSync), r (params::tremDiv),
            r (params::simmer), r (params::monoFreq), r (params::monoOn), r (params::outputTrim) };
 
     apvts.state.addListener (this);
@@ -87,6 +88,13 @@ void CrockPotProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, buffer.getNumSamples());
 
+    // ---- host tempo (RT-safe playhead read; falls back to last known) ------
+    if (auto* playhead = getPlayHead())
+        if (auto position = playhead->getPosition())
+            if (auto bpm = position->getBpm())
+                if (*bpm > 1.0)
+                    currentBpm = *bpm;
+
     // ---- one atomic read per param, Simmer seasoning applied (D11) ---------
     const float s01 = rp.simmer->load() * 0.01f;
 
@@ -111,15 +119,25 @@ void CrockPotProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     chorus.updateParams (rp.chorusRate->load(), seasoned.chorusDepth,
                          rp.chorusMix->load(), rp.chorusBypass->load() > 0.5f);
 
+    const auto divBeats = [] (float idx)
+    {
+        const auto i = juce::jlimit (0, (int) params::divisionBeats.size() - 1, (int) idx);
+        return params::divisionBeats[(size_t) i];
+    };
+
     tremolo.updateParams (rp.tremRate->load(), rp.tremDepth->load(),
-                          rp.tremMix->load(), rp.tremBypass->load() > 0.5f);
+                          rp.tremMix->load(), rp.tremBypass->load() > 0.5f,
+                          rp.tremSync->load() > 0.5f,
+                          divBeats (rp.tremDiv->load()), currentBpm);
 
     reverse.updateParams (rp.revWindow->load(), rp.revMix->load(),
                           rp.revBypass->load() > 0.5f);
 
     delay.updateParams (rp.delayTime->load(), seasoned.delayFeedback,
                         rp.delayTone->load(), rp.delayMix->load(),
-                        rp.delayBypass->load() > 0.5f);
+                        rp.delayBypass->load() > 0.5f,
+                        rp.delaySync->load() > 0.5f,
+                        divBeats (rp.delayDiv->load()), currentBpm);
 
     reverb.updateParams (rp.verbSize->load(), rp.verbDamp->load(),
                          rp.verbWidth->load(), seasoned.verbMix,
@@ -178,6 +196,31 @@ void CrockPotProcessor::setStateInformation (const void* data, int sizeInBytes)
 }
 
 //==============================================================================
+juce::String CrockPotProcessor::saveStateToXml() const
+{
+    auto state = apvts.copyState();
+    state.setProperty ("version", VERSION, nullptr);
+    return state.toXmlString();
+}
+
+bool CrockPotProcessor::restoreFromXml (const juce::String& xmlText)
+{
+    const auto xml = juce::parseXML (xmlText);
+    if (xml == nullptr)
+        return false;
+
+    const auto state = juce::ValueTree::fromXml (*xml);
+    if (! state.isValid() || ! state.hasType (apvts.state.getType()))
+        return false;
+
+    apvts.replaceState (state);
+    if (! apvts.state.hasProperty (params::chainOrderProperty))
+        apvts.state.setProperty (params::chainOrderProperty,
+                                 params::defaultChainOrder, nullptr);
+    refreshChainOrder();
+    return true;
+}
+
 juce::String CrockPotProcessor::getChainOrderString() const
 {
     return apvts.state.getProperty (params::chainOrderProperty,

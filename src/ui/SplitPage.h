@@ -34,7 +34,7 @@ public:
         setupLabel (outLabel,    "",               0.6f,  juce::Justification::centredLeft);
         setupLabel (statusLabel, "",               0.85f, juce::Justification::centred);
         setupLabel (honestLabel,
-                    "v1 DSP split · rough + creative on purpose · kick and snare land best,"
+                    "v1 DSP split - rough + creative on purpose - kick and snare land best,"
                     " toms and cymbals are the roughest cut",
                     0.45f, juce::Justification::centred);
 

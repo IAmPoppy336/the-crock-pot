@@ -34,11 +34,22 @@ public:
     }
 
     //  time: 0..100% → 40..1500 ms (squared taper) · feedback: 0..95% · tone: dark..open
+    //  synced: time = note division at host BPM (clamped to the 2 s line)
     void updateParams (float timePercent, float feedbackPercent, float tonePercent,
-                       float mixPercent, bool bypassed)
+                       float mixPercent, bool bypassed,
+                       bool synced, float divisionBeatLength, double bpm)
     {
-        const float n = timePercent * 0.01f;
-        timeSamples.setTargetValue ((float) (juce::jmap (n * n, 40.0f, 1500.0f) * 0.001 * sampleRate));
+        float ms;
+        if (synced && bpm > 1.0)
+            ms = (float) (divisionBeatLength * 60000.0 / bpm);
+        else
+        {
+            const float n = timePercent * 0.01f;
+            ms = juce::jmap (n * n, 40.0f, 1500.0f);
+        }
+        const float maxMs = (float) (1990.0);   // stay inside the 2 s delay line
+        timeSamples.setTargetValue ((float) (juce::jlimit (10.0f, maxMs, ms) * 0.001 * sampleRate));
+
         feedback.setTargetValue (juce::jmin (feedbackPercent, 95.0f) * 0.01f);
         toneHz.setTargetValue (1200.0f * std::pow (12.0f, tonePercent * 0.01f)); // 1.2k → 14.4k
         mixStage.setTarget (mixPercent * 0.01f, bypassed);

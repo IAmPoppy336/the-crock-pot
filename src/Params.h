@@ -53,6 +53,18 @@ namespace params
     inline constexpr auto verbWidth     = "verb_width";
     inline constexpr auto verbMix       = "verb_mix";
     inline constexpr auto verbBypass    = "verb_bypass";
+    // --- tempo sync (delay + tremolo follow Ableton's BPM when on) ---------------
+    inline constexpr auto delaySync     = "delay_sync";
+    inline constexpr auto delayDiv      = "delay_div";
+    inline constexpr auto tremSync      = "trem_sync";
+    inline constexpr auto tremDiv       = "trem_div";
+
+    //  note divisions shared by every synced block (index-matched arrays)
+    inline const juce::StringArray divisionNames
+        { "1/1", "1/2", "1/4.", "1/4", "1/8.", "1/8", "1/4T", "1/8T", "1/16" };
+    inline constexpr std::array<float, 9> divisionBeats
+        { 4.0f, 2.0f, 1.5f, 1.0f, 0.75f, 0.5f, 0.6667f, 0.3333f, 0.25f };
+
     // --- global -------------------------------------------------------------------------
     inline constexpr auto simmer        = "simmer";
     inline constexpr auto monoFreq      = "mono_freq";
@@ -123,6 +135,13 @@ namespace params
         layout.add (pct (verbWidth, "Verb Width", 90.0f));
         layout.add (pct (verbMix,   "Verb Mix",   30.0f));
         layout.add (onOff (verbBypass, "Verb Bypass", true));
+
+        layout.add (onOff (delaySync, "Delay Sync", false));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { delayDiv, 1 }, "Delay Division", divisionNames, 5)); // 1/8
+        layout.add (onOff (tremSync, "Trem Sync", false));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { tremDiv, 1 }, "Trem Division", divisionNames, 3));   // 1/4
 
         layout.add (pct (simmer, "Simmer", 0.0f));
 

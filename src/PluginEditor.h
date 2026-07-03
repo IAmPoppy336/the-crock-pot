@@ -15,7 +15,8 @@
       COOK:   art + Simmer + focused block panel + reorderable chain strip
       SPLIT:  drop a loop → background split → Leftovers on disk (M4b)
 */
-class CrockPotEditor final : public juce::AudioProcessorEditor
+class CrockPotEditor final : public juce::AudioProcessorEditor,
+                             private juce::Timer
 {
 public:
     explicit CrockPotEditor (CrockPotProcessor&);
@@ -27,14 +28,24 @@ public:
 private:
     void setPage (int newPage);
     void shakeThePot();
+    void unshake();
+    void saveRecipe();
+    void loadRecipe();
+    void timerCallback() override;   // repaints just the header meter
 
     CrockPotProcessor& processorRef;
     CrockPotLookAndFeel lookAndFeel;
 
     juce::TextButton cookTab { "COOK" }, splitTab { "SPLIT" };
-    juce::TextButton shakeButton { "Shake the Pot" };
+    juce::TextButton shakeButton { "Shake the Pot" }, unshakeButton { "Unshake" };
+    juce::TextButton saveButton { "Save" }, loadButton { "Load" };
     juce::Slider outputKnob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputAttachment;
+
+    juce::ValueTree shakeUndoState;
+    std::unique_ptr<juce::FileChooser> chooser;
+    juce::Rectangle<int> meterArea;
+    float meterLevel = 0.0f;
 
     CookPage cookPage;
     SplitPage splitPage;

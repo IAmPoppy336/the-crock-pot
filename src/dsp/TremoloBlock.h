@@ -20,10 +20,18 @@ public:
     void reset() override { mixStage.reset(); }
 
     //  rate: 0..100% → 0.2..16 Hz (squared taper) · depth: 0..100%
-    void updateParams (float ratePercent, float depthPercent, float mixPercent, bool bypassed)
+    //  synced: one cycle per note division at host BPM
+    void updateParams (float ratePercent, float depthPercent, float mixPercent, bool bypassed,
+                       bool synced, float divisionBeatLength, double bpm)
     {
-        const float n = ratePercent * 0.01f;
-        rateHz.setTargetValue (juce::jmap (n * n, 0.2f, 16.0f));
+        if (synced && bpm > 1.0)
+            rateHz.setTargetValue (juce::jlimit (0.05f, 30.0f,
+                (float) (bpm / (60.0 * juce::jmax (0.05f, divisionBeatLength)))));
+        else
+        {
+            const float n = ratePercent * 0.01f;
+            rateHz.setTargetValue (juce::jmap (n * n, 0.2f, 16.0f));
+        }
         depth.setTargetValue (depthPercent * 0.01f);
         mixStage.setTarget (mixPercent * 0.01f, bypassed);
     }
