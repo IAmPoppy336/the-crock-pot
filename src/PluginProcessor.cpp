@@ -139,6 +139,10 @@ void CrockPotProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (rp.outputTrim->load()));
     outputGain.applyGain (buffer, buffer.getNumSamples());
+
+    // feed the editor's ember glow (RT-safe: scan + relaxed store, no alloc)
+    outputLevel.store (buffer.getMagnitude (0, buffer.getNumSamples()),
+                       std::memory_order_relaxed);
 }
 
 //==============================================================================

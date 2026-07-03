@@ -67,6 +67,10 @@ public:
     juce::String getChainOrderString() const;
     void setChainOrderString (const juce::String& csv);   // message thread only
 
+    //  Editor eye-candy feed: block peak level, one relaxed atomic store per
+    //  block. Written on the audio thread (no alloc/lock), read by the UI timer.
+    float getOutputLevel() const { return outputLevel.load (std::memory_order_relaxed); }
+
     juce::AudioProcessorValueTreeState apvts;
 
 private:
@@ -108,6 +112,7 @@ private:
     std::atomic<juce::uint64> chainOrder { 0x76543210ull };   // nibble per slot
 
     juce::SmoothedValue<float> outputGain { 1.0f };
+    std::atomic<float> outputLevel { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CrockPotProcessor)
 };

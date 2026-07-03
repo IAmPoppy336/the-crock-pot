@@ -40,7 +40,7 @@ CrockPotEditor::CrockPotEditor (CrockPotProcessor& p)
     };
     setupLabel (simmerLabel, "SIMMER", 0.95f);
     setupLabel (outputLabel, "Output", 0.8f);
-    setupLabel (hintLabel, "block knobs: Live's device panel (real UI lands in M3)", 0.45f);
+    setupLabel (hintLabel, "lit block = cooking · knobs live in Live's device panel until M3", 0.45f);
 
     auto& apvts = processorRef.apvts;
     simmerAttachment = std::make_unique<SliderAttachment> (apvts, params::simmer,     simmerDial);
@@ -71,7 +71,17 @@ CrockPotEditor::CrockPotEditor (CrockPotProcessor& p)
     setupMover (moveRight, +1);
 
     processorRef.apvts.state.addListener (this);
+
+    // pizzazz plumbing: cached atomics (resolved once) + the 30 fps heartbeat
+    simmerRaw = apvts.getRawParameterValue (params::simmer);
+    const std::array<const char*, CrockPotProcessor::numBlocks> bypassIds {
+        params::satBypass, params::resBypass, params::tapeBypass, params::chorusBypass,
+        params::tremBypass, params::revBypass, params::delayBypass, params::verbBypass };
+    for (int i = 0; i < CrockPotProcessor::numBlocks; ++i)
+        bypassRaw[(size_t) i] = apvts.getRawParameterValue (bypassIds[(size_t) i]);
+
     refreshChainButtons();
+    startTimerHz (30);
 
     setResizable (true, true);
     setResizeLimits (540, 420, 1500, 1100);
@@ -106,10 +116,42 @@ void CrockPotEditor::refreshChainButtons()
         const int idx = (i < tokens.size() ? tokens[i].trim().getIntValue() : i);
         const auto safe = juce::jlimit (0, CrockPotProcessor::numBlocks - 1, idx);
 
+        slotToBlock[(size_t) i] = safe;
+        lastTint[(size_t) i] = -1;   // force the timer to re-tint
+
         b.setButtonText (juce::String (CrockPotProcessor::blockNames[(size_t) safe]));
-        b.setColour (juce::TextButton::buttonColourId,
-                     i == selectedSlot ? lidShine : knobBrown);
     }
+}
+
+void CrockPotEditor::timerCallback()
+{
+    // steam sway + ember smoothing
+    steamPhase += 0.045f;
+    if (steamPhase > 6.2831853f) steamPhase -= 6.2831853f;
+
+    glowLevel = 0.85f * glowLevel
+              + 0.15f * juce::jlimit (0.0f, 1.0f, processorRef.getOutputLevel());
+
+    // chain buttons wear their power state: lit = cooking, dim = bypassed
+    for (int i = 0; i < CrockPotProcessor::numBlocks; ++i)
+    {
+        const bool bypassed = bypassRaw[(size_t) slotToBlock[(size_t) i]]->load() > 0.5f;
+        const int tint = (i == selectedSlot ? 2 : (bypassed ? 0 : 1));
+
+        if (tint != lastTint[(size_t) i])
+        {
+            lastTint[(size_t) i] = tint;
+            auto& b = chainButtons[(size_t) i];
+            b.setColour (juce::TextButton::buttonColourId,
+                         tint == 2 ? lidShine
+                       : tint == 1 ? potBody
+                                   : bgTop.brighter (0.06f));
+            b.setColour (juce::TextButton::textColourOffId,
+                         tint == 0 ? cream.withAlpha (0.40f) : cream);
+        }
+    }
+
+    repaint();   // steam + ember live in paint()
 }
 
 void CrockPotEditor::moveSelected (int delta)
@@ -178,9 +220,18 @@ void CrockPotEditor::paint (juce::Graphics& g)
     const float potTop = artH * 0.34f;
     const juce::Rectangle<float> body { cx - potW / 2.0f, potTop, potW, potH };
 
-    g.setColour (lidShine.withAlpha (0.10f));
+    // ---- ember glow: breathes with Simmer + the audio actually flowing ------
+    const float simmer01 = (simmerRaw != nullptr ? simmerRaw->load() * 0.01f : 0.0f);
+    const float emberA   = juce::jlimit (0.06f, 0.40f,
+                                         0.08f + 0.14f * simmer01 + 0.20f * glowLevel);
+    const auto  ember    = lidShine.interpolatedWith (juce::Colour (0xffe0662a),
+                                                      0.5f * simmer01 + 0.3f * glowLevel);
+    g.setColour (ember.withAlpha (emberA));
     g.fillEllipse (body.getX() - potW * 0.10f, body.getBottom() - potH * 0.12f,
                    potW * 1.2f, potH * 0.35f);
+    g.setColour (ember.withAlpha (emberA * 0.5f));
+    g.fillEllipse (body.getX() - potW * 0.22f, body.getBottom() - potH * 0.06f,
+                   potW * 1.44f, potH * 0.5f);
 
     g.setGradientFill (juce::ColourGradient (potBody, cx, body.getY(),
                                              potShade, cx, body.getBottom(), false));
@@ -205,38 +256,52 @@ void CrockPotEditor::paint (juce::Graphics& g)
     g.fillEllipse (cx - knobR, lid.getCentreY() - lidH * 0.55f - knobR,
                    knobR * 2.0f, knobR * 2.0f);
 
-    auto steamCurl = [&] (float x, float scale, float alpha)
+    // ---- living steam: sways on the timer, thickens as Simmer rises ---------
+    auto steamCurl = [&] (float x, float scale, float alpha, float phaseOffset)
     {
+        const float sway  = std::sin (steamPhase + phaseOffset);
+        const float sway2 = std::sin (steamPhase * 0.63f + phaseOffset * 1.7f);
+
         juce::Path s;
         const float baseY = lid.getY() - h * 0.010f;
-        const float rise  = artH * 0.30f * scale;
+        const float rise  = artH * (0.30f + 0.10f * simmer01) * scale
+                          * (1.0f + 0.06f * sway2);
+        const float drift = w * 0.012f;
+
         s.startNewSubPath (x, baseY);
-        s.cubicTo (x - w * 0.015f, baseY - rise * 0.4f,
-                   x + w * 0.015f, baseY - rise * 0.6f,
-                   x,              baseY - rise);
-        g.setColour (cream.withAlpha (alpha));
+        s.cubicTo (x - drift * (1.0f + 0.5f * sway),  baseY - rise * 0.4f,
+                   x + drift * (1.0f + 0.5f * sway2), baseY - rise * 0.6f,
+                   x + drift * sway * 0.8f,           baseY - rise);
+
+        g.setColour (cream.withAlpha (alpha * (0.75f + 0.5f * simmer01)
+                                            * (0.9f + 0.1f * sway2)));
         g.strokePath (s, juce::PathStrokeType (juce::jmax (2.0f, h * 0.006f),
                                                juce::PathStrokeType::curved,
                                                juce::PathStrokeType::rounded));
     };
-    steamCurl (cx - potW * 0.22f, 0.85f, 0.30f);
-    steamCurl (cx,                1.20f, 0.45f);
-    steamCurl (cx + potW * 0.22f, 0.95f, 0.30f);
+    steamCurl (cx - potW * 0.22f, 0.85f, 0.30f, 0.0f);
+    steamCurl (cx,                1.20f, 0.45f, 2.1f);
+    steamCurl (cx + potW * 0.22f, 0.95f, 0.30f, 4.2f);
+    if (simmer01 > 0.5f)   // hard simmer earns a fourth wisp
+        steamCurl (cx + potW * 0.38f, 0.70f, (simmer01 - 0.5f) * 0.6f, 1.3f);
 
-    // ---- title over the art ----------------------------------------------------
+    // ---- title over the art (soft shadow for depth) -----------------------------
     const float titlePx = juce::jlimit (18.0f, 34.0f, artH * 0.17f);
-    g.setColour (cream);
+    const auto titleArea = bounds.withTrimmedTop (artH * 0.78f).withHeight (titlePx * 1.25f);
     g.setFont (juce::Font (juce::FontOptions (juce::Font::getDefaultSansSerifFontName(),
                                               titlePx, juce::Font::bold)));
-    g.drawText ("The Crock-Pot",
-                bounds.withTrimmedTop (artH * 0.78f).withHeight (titlePx * 1.25f),
+    g.setColour (bgTop.withAlpha (0.55f));
+    g.drawText ("The Crock-Pot", titleArea.translated (0.0f, 2.0f),
+                juce::Justification::centredTop, false);
+    g.setColour (cream);
+    g.drawText ("The Crock-Pot", titleArea,
                 juce::Justification::centredTop, false);
 
     g.setColour (cream.withAlpha (0.55f));
     g.setFont (juce::Font (juce::FontOptions (juce::Font::getDefaultSansSerifFontName(),
                                               juce::jlimit (10.0f, 13.0f, h * 0.024f),
                                               juce::Font::plain)));
-    g.drawText (juce::String ("v") + VERSION + " · M2 full pedalboard",
+    g.drawText (juce::String ("v") + VERSION + " · pedalboard + splitter engine",
                 getLocalBounds().reduced (10),
                 juce::Justification::topRight, false);
 }

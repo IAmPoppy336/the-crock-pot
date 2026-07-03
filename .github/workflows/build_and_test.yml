@@ -51,6 +51,9 @@ jobs:
       - name: Build
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.BUILD_TYPE }} --parallel 4
 
+      - name: Run tests (Catch2 — splitter engine)
+        run: ctest --test-dir ${{ env.BUILD_DIR }} -C ${{ env.BUILD_TYPE }} --output-on-failure
+
       - name: Read in .env from CMake   # PROJECT_NAME / PRODUCT_NAME / VERSION
         run: |
           cat .env

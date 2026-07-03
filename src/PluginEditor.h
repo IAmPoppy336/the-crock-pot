@@ -11,7 +11,8 @@
     front-and-center, and drag-free chain reordering.
 */
 class CrockPotEditor final : public juce::AudioProcessorEditor,
-                             private juce::ValueTree::Listener
+                             private juce::ValueTree::Listener,
+                             private juce::Timer
 {
 public:
     explicit CrockPotEditor (CrockPotProcessor&);
@@ -23,11 +24,20 @@ public:
 private:
     void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override;
     void valueTreeRedirected (juce::ValueTree&) override;
+    void timerCallback() override;    // 30 fps: steam drift, ember glow, power tints
 
     void refreshChainButtons();       // relabel from processor order
     void moveSelected (int delta);    // shift selected block left/right
 
     CrockPotProcessor& processorRef;
+
+    // ---- pizzazz state (message thread only) --------------------------------
+    float steamPhase = 0.0f;          // drives the steam sway
+    float glowLevel  = 0.0f;          // smoothed audio level for the ember
+    std::atomic<float>* simmerRaw = nullptr;
+    std::array<std::atomic<float>*, CrockPotProcessor::numBlocks> bypassRaw {};
+    std::array<int, CrockPotProcessor::numBlocks> slotToBlock { 0,1,2,3,4,5,6,7 };
+    std::array<int, CrockPotProcessor::numBlocks> lastTint { -1,-1,-1,-1,-1,-1,-1,-1 };
 
     juce::Slider simmerDial, outputSlider;
     juce::Label simmerLabel, outputLabel, hintLabel;

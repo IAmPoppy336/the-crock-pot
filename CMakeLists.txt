@@ -124,6 +124,35 @@ target_link_libraries(SharedCode
 
 target_link_libraries("${PROJECT_NAME}" PRIVATE SharedCode)
 
+# ----------------------------------------------------------------------- tests
+# Catch2 console app covering the offline splitter engine (M4a). The plugin
+# target stays test-free; the audio-thread gate remains pluginval.
+option(CROCKPOT_BUILD_TESTS "Build the Catch2 test target" ON)
+if(CROCKPOT_BUILD_TESTS)
+    FetchContent_Declare(Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.7.1
+        GIT_SHALLOW    TRUE)
+    FetchContent_MakeAvailable(Catch2)
+
+    juce_add_console_app(Tests PRODUCT_NAME "CrockPot Tests")
+
+    target_sources(Tests PRIVATE tests/SplitterTests.cpp)
+    target_include_directories(Tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_compile_features(Tests PRIVATE cxx_std_20)
+    target_compile_options(Tests PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+
+    target_link_libraries(Tests PRIVATE
+        Catch2::Catch2WithMain
+        juce_audio_formats
+        juce_dsp
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+
+    enable_testing()
+    add_test(NAME crockpot_splitter_tests COMMAND Tests)
+endif()
+
 # ------------------------------------------------------------------- CI helper
 # Writes a .env the GitHub workflow reads (pamplejuce's GitHubENV.cmake, inlined).
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/../.env"
