@@ -53,6 +53,17 @@ namespace params
     inline constexpr auto verbWidth     = "verb_width";
     inline constexpr auto verbMix       = "verb_mix";
     inline constexpr auto verbBypass    = "verb_bypass";
+    // --- the Skimmer (pitch-tracking dynamic EQ, block #9) -----------------------
+    inline constexpr auto skimTrack    = "skim_track";
+    inline constexpr auto skimHarmonic = "skim_harmonic";
+    inline constexpr auto skimFreq     = "skim_freq";
+    inline constexpr auto skimAmount   = "skim_amount";
+    inline constexpr auto skimWidth    = "skim_width";
+    inline constexpr auto skimAttack   = "skim_attack";
+    inline constexpr auto skimRelease  = "skim_release";
+    inline constexpr auto skimMix      = "skim_mix";
+    inline constexpr auto skimBypass   = "skim_bypass";
+
     // --- tempo sync (delay + tremolo follow Ableton's BPM when on) ---------------
     inline constexpr auto delaySync     = "delay_sync";
     inline constexpr auto delayDiv      = "delay_div";
@@ -71,9 +82,10 @@ namespace params
     inline constexpr auto monoOn        = "mono_on";
     inline constexpr auto outputTrim    = "output_trim";
 
-    // non-param state property: user block order, e.g. "0,1,2,3,4,5,6,7"
+    // non-param state property: user block order. Skimmer (8) leads by default:
+    // shape the resonance BEFORE the drive stages.
     inline constexpr auto chainOrderProperty = "chain_order";
-    inline constexpr auto defaultChainOrder  = "0,1,2,3,4,5,6,7";
+    inline constexpr auto defaultChainOrder  = "8,0,1,2,3,4,5,6,7";
 
     inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     {
@@ -135,6 +147,26 @@ namespace params
         layout.add (pct (verbWidth, "Verb Width", 90.0f));
         layout.add (pct (verbMix,   "Verb Mix",   30.0f));
         layout.add (onOff (verbBypass, "Verb Bypass", true));
+
+        layout.add (onOff (skimTrack, "Skim Track", true));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { skimHarmonic, 1 }, "Skim Harmonic",
+            juce::StringArray { "1x", "2x", "3x", "4x" }, 0));
+        layout.add (std::make_unique<FloatParam> (
+            juce::ParameterID { skimFreq, 1 }, "Skim Freq",
+            Range { 40.0f, 2000.0f, 1.0f, 0.4f }, 110.0f, Attr{}.withLabel ("Hz")));
+        layout.add (std::make_unique<FloatParam> (
+            juce::ParameterID { skimAmount, 1 }, "Skim Amount",
+            Range { -24.0f, 12.0f, 0.1f }, -6.0f, Attr{}.withLabel ("dB")));
+        layout.add (pct (skimWidth, "Skim Width", 30.0f));
+        layout.add (std::make_unique<FloatParam> (
+            juce::ParameterID { skimAttack, 1 }, "Skim Attack",
+            Range { 1.0f, 200.0f, 0.5f, 0.5f }, 12.0f, Attr{}.withLabel ("ms")));
+        layout.add (std::make_unique<FloatParam> (
+            juce::ParameterID { skimRelease, 1 }, "Skim Release",
+            Range { 20.0f, 800.0f, 1.0f, 0.5f }, 140.0f, Attr{}.withLabel ("ms")));
+        layout.add (pct (skimMix, "Skim Mix", 100.0f));
+        layout.add (onOff (skimBypass, "Skim Bypass", true));
 
         layout.add (onOff (delaySync, "Delay Sync", false));
         layout.add (std::make_unique<juce::AudioParameterChoice> (

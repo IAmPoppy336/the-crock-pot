@@ -57,21 +57,29 @@ public:
         syncAttachment.reset();
         divAttachment.reset();
 
-        const char* syncId = (block == 6 ? params::delaySync : block == 4 ? params::tremSync : nullptr);
-        const char* divId  = (block == 6 ? params::delayDiv  : block == 4 ? params::tremDiv  : nullptr);
+        //  aux slot: Sync+division for delay/trem · Track+harmonic for the Skimmer
+        const char* toggleId = (block == 6 ? params::delaySync
+                              : block == 4 ? params::tremSync
+                              : block == 8 ? params::skimTrack : nullptr);
+        const char* comboId  = (block == 6 ? params::delayDiv
+                              : block == 4 ? params::tremDiv
+                              : block == 8 ? params::skimHarmonic : nullptr);
 
-        if (syncId != nullptr)
+        if (toggleId != nullptr)
         {
-            syncButton = std::make_unique<juce::ToggleButton> ("Sync");
+            syncButton = std::make_unique<juce::ToggleButton> (block == 8 ? "Track" : "Sync");
             addAndMakeVisible (*syncButton);
             syncAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-                processorRef.apvts, syncId, *syncButton);
+                processorRef.apvts, toggleId, *syncButton);
 
             divBox = std::make_unique<juce::ComboBox>();
-            divBox->addItemList (params::divisionNames, 1);   // ids 1..N (attachment maps)
+            if (block == 8)
+                divBox->addItemList (juce::StringArray { "1x", "2x", "3x", "4x" }, 1);
+            else
+                divBox->addItemList (params::divisionNames, 1);   // ids 1..N
             addAndMakeVisible (*divBox);
             divAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
-                processorRef.apvts, divId, *divBox);
+                processorRef.apvts, comboId, *divBox);
         }
 
         // ---- power pill (inverted bypass) ---------------------------------------
@@ -153,8 +161,11 @@ private:
             case 5: return { { params::revWindow, "Window" }, { params::revMix, "Mix" } };
             case 6: return { { params::delayTime, "Time" },   { params::delayFeedback, "Feedbk" },
                              { params::delayTone, "Tone" },   { params::delayMix, "Mix" } };
-            default:return { { params::verbSize, "Size" },    { params::verbDamp, "Damp" },
+            case 7: return { { params::verbSize, "Size" },    { params::verbDamp, "Damp" },
                              { params::verbWidth, "Width" },  { params::verbMix, "Mix" } };
+            default:return { { params::skimFreq, "Freq" },    { params::skimAmount, "Amount" },
+                             { params::skimWidth, "Width" },  { params::skimAttack, "Attack" },
+                             { params::skimRelease, "Rel" },  { params::skimMix, "Mix" } };
         }
     }
 
@@ -162,7 +173,8 @@ private:
     {
         static constexpr std::array<const char*, CrockPotProcessor::numBlocks> ids {
             params::satBypass, params::resBypass, params::tapeBypass, params::chorusBypass,
-            params::tremBypass, params::revBypass, params::delayBypass, params::verbBypass };
+            params::tremBypass, params::revBypass, params::delayBypass, params::verbBypass,
+            params::skimBypass };
         return ids[blockIndex];
     }
 

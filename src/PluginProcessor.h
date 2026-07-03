@@ -13,6 +13,7 @@
 #include "dsp/ReverseBlock.h"
 #include "dsp/DelayBlock.h"
 #include "dsp/ReverbBlock.h"
+#include "dsp/SkimmerBlock.h"
 
 //==============================================================================
 /*  The Crock-Pot — audio processor (M2: the full pedalboard).
@@ -61,7 +62,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     //==========================================================================
-    static constexpr int numBlocks = 8;
+    static constexpr int numBlocks = 9;
     static const std::array<const char*, numBlocks> blockNames;
 
     juce::String getChainOrderString() const;
@@ -95,6 +96,8 @@ private:
                            *delayTime, *delayFeedback, *delayTone, *delayMix, *delayBypass,
                            *verbSize, *verbDamp, *verbWidth, *verbMix, *verbBypass,
                            *delaySync, *delayDiv, *tremSync, *tremDiv,
+                           *skimTrack, *skimHarmonic, *skimFreq, *skimAmount,
+                           *skimWidth, *skimAttack, *skimRelease, *skimMix, *skimBypass,
                            *simmer, *monoFreq, *monoOn, *outputTrim;
     };
     Raw rp {};
@@ -111,12 +114,13 @@ private:
     ReverseBlock    reverse;
     DelayBlock      delay;
     ReverbBlock     reverb;
+    SkimmerBlock    skimmer;
 
     std::array<CrockBlock*, numBlocks> blocks {
         &saturation, &resampler, &tape, &chorus,
-        &tremolo, &reverse, &delay, &reverb };
+        &tremolo, &reverse, &delay, &reverb, &skimmer };
 
-    std::atomic<juce::uint64> chainOrder { 0x76543210ull };   // nibble per slot
+    std::atomic<juce::uint64> chainOrder { 0x765432108ull };  // nibble per slot (Skimmer leads)
 
     juce::SmoothedValue<float> outputGain { 1.0f };
     std::atomic<float> outputLevel { 0.0f };

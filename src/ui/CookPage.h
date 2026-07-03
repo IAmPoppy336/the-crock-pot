@@ -77,7 +77,8 @@ public:
         simmerRaw = processorRef.apvts.getRawParameterValue (params::simmer);
         const std::array<const char*, CrockPotProcessor::numBlocks> bypassIds {
             params::satBypass, params::resBypass, params::tapeBypass, params::chorusBypass,
-            params::tremBypass, params::revBypass, params::delayBypass, params::verbBypass };
+            params::tremBypass, params::revBypass, params::delayBypass, params::verbBypass,
+            params::skimBypass };
         for (int i = 0; i < CrockPotProcessor::numBlocks; ++i)
             bypassRaw[(size_t) i] = processorRef.apvts.getRawParameterValue (bypassIds[(size_t) i]);
 

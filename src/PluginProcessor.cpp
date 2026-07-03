@@ -3,7 +3,7 @@
 
 const std::array<const char*, CrockPotProcessor::numBlocks>
 CrockPotProcessor::blockNames { "Saturation", "Resampler", "Tape", "Chorus",
-                                "Tremolo", "Reverse", "Delay", "Reverb" };
+                                "Tremolo", "Reverse", "Delay", "Reverb", "Skimmer" };
 
 //==============================================================================
 CrockPotProcessor::CrockPotProcessor()
@@ -27,6 +27,8 @@ CrockPotProcessor::CrockPotProcessor()
            r (params::delayTime), r (params::delayFeedback), r (params::delayTone), r (params::delayMix), r (params::delayBypass),
            r (params::verbSize), r (params::verbDamp), r (params::verbWidth), r (params::verbMix), r (params::verbBypass),
            r (params::delaySync), r (params::delayDiv), r (params::tremSync), r (params::tremDiv),
+           r (params::skimTrack), r (params::skimHarmonic), r (params::skimFreq), r (params::skimAmount),
+           r (params::skimWidth), r (params::skimAttack), r (params::skimRelease), r (params::skimMix), r (params::skimBypass),
            r (params::simmer), r (params::monoFreq), r (params::monoOn), r (params::outputTrim) };
 
     apvts.state.addListener (this);
@@ -142,6 +144,17 @@ void CrockPotProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     reverb.updateParams (rp.verbSize->load(), rp.verbDamp->load(),
                          rp.verbWidth->load(), seasoned.verbMix,
                          rp.verbBypass->load() > 0.5f);
+
+    // Skimmer: surgical tool — deliberately unseasoned by Simmer (D11 curated)
+    skimmer.updateParams (rp.skimTrack->load() > 0.5f,
+                          (int) rp.skimHarmonic->load(),
+                          rp.skimFreq->load(),
+                          rp.skimAmount->load(),
+                          rp.skimWidth->load(),
+                          rp.skimAttack->load(),
+                          rp.skimRelease->load(),
+                          rp.skimMix->load(),
+                          rp.skimBypass->load() > 0.5f);
 
     // ---- the cook: mono floor first, then blocks in user order -------------
     juce::dsp::AudioBlock<float> block (buffer);
