@@ -1,0 +1,90 @@
+# ==============================================================================
+#  The Crock-Pot — CI: build (Mac + Windows) and validate with pluginval.
+#  Derived from sudara/pamplejuce build_and_test.yml (fetched 2026-07-02),
+#  simplified for the gift path: no signing, no installers, no IPP/sccache.
+#  pluginval runs at STRICTNESS 5 — that is M0's exit criterion (roadmap.md).
+#  (pamplejuce itself runs 10; we ratchet up in a later milestone.)
+# ==============================================================================
+
+name: The Crock-Pot
+
+on:
+  workflow_dispatch:   # run manually from the Actions tab
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  BUILD_DIR: Builds
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build_and_validate:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false        # show errors from both platforms
+      matrix:
+        include:
+          - name: macOS
+            os: macos-14
+            pluginval-binary: pluginval.app/Contents/MacOS/pluginval
+          - name: Windows
+            os: windows-latest
+            pluginval-binary: ./pluginval.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # First configure downloads JUCE 8.0.13 via FetchContent (~2 min)
+      - name: Configure
+        run: cmake -B ${{ env.BUILD_DIR }} -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} .
+
+      - name: Build
+        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Read in .env from CMake   # PROJECT_NAME / PRODUCT_NAME / VERSION
+        run: |
+          cat .env
+          cat .env >> $GITHUB_ENV
+
+      - name: Set artifact paths
+        run: |
+          ARTIFACTS_PATH=${{ env.BUILD_DIR }}/${{ env.PROJECT_NAME }}_artefacts/${{ env.BUILD_TYPE }}
+          echo "ARTIFACTS_PATH=$ARTIFACTS_PATH" >> $GITHUB_ENV
+          echo "VST3_PATH=$ARTIFACTS_PATH/VST3/${{ env.PRODUCT_NAME }}.vst3" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+
+      # ---- THE GATE: pluginval strictness 5 on the VST3 ----------------------
+      # (AU can't be meaningfully validated on CI; auval runs on a real Mac —
+      #  that step lives in BUILDING.md's test checklist.)
+      - name: Pluginval (strictness 5 — M0 exit criterion)
+        run: |
+          curl -LO "https://github.com/Tracktion/pluginval/releases/download/v1.0.3/pluginval_${{ runner.os }}.zip"
+          7z x pluginval_${{ runner.os }}.zip
+          ${{ matrix.pluginval-binary }} --strictness-level 5 --verbose --validate "${{ env.VST3_PATH }}"
+
+      # ---- package, named per roadmap: Crockpot_v0.x.y_YYYY-MM-DD_<os>.zip ---
+      - name: Zip (macOS — VST3 + AU)
+        if: runner.os == 'macOS'
+        working-directory: ${{ env.ARTIFACTS_PATH }}
+        run: zip -r "Crockpot_v${{ env.VERSION }}_${{ env.BUILD_DATE }}_mac.zip" VST3 AU
+
+      - name: Zip (Windows — VST3)
+        if: runner.os == 'Windows'
+        working-directory: ${{ env.ARTIFACTS_PATH }}
+        run: 7z a -tzip "Crockpot_v${{ env.VERSION }}_${{ env.BUILD_DATE }}_win.zip" VST3
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: CrockPot-${{ runner.os }}
+          path: ${{ env.ARTIFACTS_PATH }}/Crockpot_*.zip

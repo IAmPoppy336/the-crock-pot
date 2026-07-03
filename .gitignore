@@ -1,0 +1,20 @@
+# build trees
+build/
+Builds/
+cmake-build-*/
+out/
+
+# IDE / editor
+.vscode/
+.idea/
+*.xcodeproj
+.vs/
+.cache/
+compile_commands.json
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# CI env dump (regenerated every configure)
+.env
