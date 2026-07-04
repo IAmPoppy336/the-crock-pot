@@ -69,7 +69,8 @@ public:
     void setChainOrderString (const juce::String& csv);   // message thread only
 
     //  Recipe save/load (message thread): full state as XML text.
-    juce::String saveStateToXml() const;
+    //  NOT const: APVTS::copyState() locks internally and is non-const (CI catch).
+    juce::String saveStateToXml();
     bool restoreFromXml (const juce::String& xmlText);   // tolerant; false = bad file
 
     //  Editor eye-candy feed: block peak level, one relaxed atomic store per

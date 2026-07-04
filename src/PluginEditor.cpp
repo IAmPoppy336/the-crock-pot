@@ -33,8 +33,8 @@ CrockPotEditor::CrockPotEditor (CrockPotProcessor& p)
     outputAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         processorRef.apvts, params::outputTrim, outputKnob);
 
-    if (auto* p = processorRef.apvts.getParameter (params::outputTrim))
-        outputKnob.setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
+    if (auto* param = processorRef.apvts.getParameter (params::outputTrim))
+        outputKnob.setDoubleClickReturnValue (true, param->convertFrom0to1 (param->getDefaultValue()));
 
     startTimerHz (15);   // header meter only
 

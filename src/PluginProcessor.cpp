@@ -209,7 +209,7 @@ void CrockPotProcessor::setStateInformation (const void* data, int sizeInBytes)
 }
 
 //==============================================================================
-juce::String CrockPotProcessor::saveStateToXml() const
+juce::String CrockPotProcessor::saveStateToXml()
 {
     auto state = apvts.copyState();
     state.setProperty ("version", VERSION, nullptr);
