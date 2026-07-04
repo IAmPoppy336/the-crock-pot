@@ -21,6 +21,8 @@
 class SkimmerBlock final : public CrockBlock
 {
 public:
+    SkimmerBlock() = default;   // explicit: MSVC (run #8) refused the implicit one
+
     void prepare (const juce::dsp::ProcessSpec& spec) override
     {
         sampleRate = spec.sampleRate;
@@ -28,9 +30,6 @@ public:
 
         freqSm.reset (spec.sampleRate, 0.05);
         freqSm.setCurrentAndTargetValue (110.0f);
-
-        const double envRate = spec.sampleRate;
-        attackCoeffBase = envRate;   // ballistics computed per block from ms
 
         reset();
     }
@@ -101,11 +100,8 @@ public:
             // handled by 50 ms smoothing; per-sample coeff update not worth it)
             freqSm.skip (n);
             const float f = freqSm.getCurrentValue();
-            computePeakCoeffs (f, q, 0.0f, detector);       // unity peak = bandpass-ish probe below
 
-            // detector: band energy via bandpass (reuse peak structure at +12dB
-            // minus dry ≈ crude BP; simpler honest probe: one-pole resonator)
-            // v1 probe: rectified band sample from a 2nd biquad set as narrow peak
+            // band-energy probe: boosted narrow peak minus dry ~= crude bandpass
             computePeakCoeffs (f, juce::jmax (2.0f, q), 12.0f, probe);
 
             float dynDb = 0.0f;
@@ -240,12 +236,12 @@ private:
     bool  tracking = true;
     float harmonic = 1.0f, manualFreq = 110.0f;
     float amount = -6.0f, q = 2.0f;
-    double attackA = 0.99, releaseA = 0.999, attackCoeffBase = 44100.0;
+    double attackA = 0.99, releaseA = 0.999;
 
     float env = 0.0f, envRef = 1.0e-4f, trackedHz = 110.0f;
 
     juce::SmoothedValue<float> freqSm { 110.0f };
-    Coeffs band, probe, detector;
+    Coeffs band, probe;
     std::array<State, 3> biquadState {};                   // ch0, ch1, probe
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkimmerBlock)
