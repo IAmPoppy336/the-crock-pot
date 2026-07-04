@@ -83,10 +83,18 @@ juce_add_plugin("${PROJECT_NAME}"
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 )
 
+# ---------------------------------------------------------- baked-in recipes
+# Factory presets compile into the binary (BinaryData) — nothing to install,
+# nothing to lose. User recipes still save/load as .crockpotrecipe files.
+file(GLOB RecipeFiles CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/recipes/*.crockpotrecipe")
+juce_add_binary_data(Assets SOURCES ${RecipeFiles})
+set_target_properties(Assets PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # ------------------------------------------------- shared code (pamplejuce ism)
 # Plugin sources live in an INTERFACE target so the M1 test target can link
 # the same code without ODR violations.
 add_library(SharedCode INTERFACE)
+target_link_libraries(SharedCode INTERFACE Assets)
 
 file(GLOB_RECURSE SourceFiles CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"

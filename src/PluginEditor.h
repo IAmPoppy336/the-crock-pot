@@ -37,8 +37,10 @@ private:
     CrockPotLookAndFeel lookAndFeel;
 
     juce::TextButton cookTab { "COOK" }, splitTab { "SPLIT" };
-    juce::TextButton shakeButton { "Shake the Pot" }, unshakeButton { "Unshake" };
+    juce::TextButton shakeButton { "Shake!" }, unshakeButton { "Unshake" };
     juce::TextButton saveButton { "Save" }, loadButton { "Load" };
+    juce::ComboBox recipeBox;
+    std::vector<const char*> recipeResources;   // BinaryData resource names, menu order
     juce::Slider outputKnob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputAttachment;
 

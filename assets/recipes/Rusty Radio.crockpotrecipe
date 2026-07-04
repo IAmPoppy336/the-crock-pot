@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CrockPotState version="0.6.0" chain_order="8,0,1,2,3,4,5,6,7">
+  <PARAM id="sat_drive" value="45.0"/><PARAM id="sat_mix" value="100.0"/><PARAM id="sat_bypass" value="0.0"/>
+  <PARAM id="res_down" value="55.0"/><PARAM id="res_crush" value="45.0"/><PARAM id="res_mix" value="70.0"/><PARAM id="res_bypass" value="0.0"/>
+  <PARAM id="tape_warmth" value="40.0"/><PARAM id="tape_wobble" value="20.0"/><PARAM id="tape_tone" value="35.0"/><PARAM id="tape_mix" value="55.0"/><PARAM id="tape_bypass" value="0.0"/>
+  <PARAM id="chorus_rate" value="25.0"/><PARAM id="chorus_depth" value="40.0"/><PARAM id="chorus_mix" value="50.0"/><PARAM id="chorus_bypass" value="1.0"/>
+  <PARAM id="trem_rate" value="40.0"/><PARAM id="trem_depth" value="50.0"/><PARAM id="trem_mix" value="100.0"/><PARAM id="trem_bypass" value="1.0"/>
+  <PARAM id="rev_window" value="50.0"/><PARAM id="rev_mix" value="50.0"/><PARAM id="rev_bypass" value="1.0"/>
+  <PARAM id="delay_time" value="45.0"/><PARAM id="delay_feedback" value="35.0"/><PARAM id="delay_tone" value="60.0"/><PARAM id="delay_mix" value="35.0"/><PARAM id="delay_bypass" value="1.0"/>
+  <PARAM id="delay_sync" value="0.0"/><PARAM id="delay_div" value="5.0"/><PARAM id="trem_sync" value="0.0"/><PARAM id="trem_div" value="3.0"/>
+  <PARAM id="verb_size" value="30.0"/><PARAM id="verb_damp" value="70.0"/><PARAM id="verb_width" value="60.0"/><PARAM id="verb_mix" value="15.0"/><PARAM id="verb_bypass" value="0.0"/>
+  <PARAM id="skim_track" value="1.0"/><PARAM id="skim_harmonic" value="0.0"/><PARAM id="skim_freq" value="110.0"/><PARAM id="skim_amount" value="-3.0"/><PARAM id="skim_width" value="25.0"/><PARAM id="skim_attack" value="12.0"/><PARAM id="skim_release" value="140.0"/><PARAM id="skim_mix" value="100.0"/><PARAM id="skim_bypass" value="0.0"/>
+  <PARAM id="simmer" value="35.0"/><PARAM id="mono_freq" value="110.0"/><PARAM id="mono_on" value="1.0"/><PARAM id="output_trim" value="-1.5"/>
+</CrockPotState>

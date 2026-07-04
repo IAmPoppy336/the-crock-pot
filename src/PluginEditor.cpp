@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "BinaryData.h"
 
 //==============================================================================
 CrockPotEditor::CrockPotEditor (CrockPotProcessor& p)
@@ -25,6 +26,32 @@ CrockPotEditor::CrockPotEditor (CrockPotProcessor& p)
     loadButton.onClick = [this] { loadRecipe(); };
     addAndMakeVisible (saveButton);
     addAndMakeVisible (loadButton);
+
+    // ---- the Recipe Book: factory presets baked into the binary ---------------
+    recipeBox.setTextWhenNothingSelected ("Recipes");
+    for (int i = 0; i < BinaryData::namedResourceListSize; ++i)
+    {
+        const auto* resource = BinaryData::namedResourceList[i];
+        const juce::String original (BinaryData::getNamedResourceOriginalFilename (resource));
+
+        if (original.endsWithIgnoreCase (".crockpotrecipe"))
+        {
+            recipeResources.push_back (resource);
+            recipeBox.addItem (original.upToLastOccurrenceOf (".", false, false),
+                               (int) recipeResources.size());
+        }
+    }
+    recipeBox.onChange = [this]
+    {
+        const auto idx = recipeBox.getSelectedId() - 1;
+        if (idx < 0 || idx >= (int) recipeResources.size())
+            return;
+
+        int dataSize = 0;
+        if (const auto* data = BinaryData::getNamedResource (recipeResources[(size_t) idx], dataSize))
+            processorRef.restoreFromXml (juce::String::fromUTF8 (data, dataSize));
+    };
+    addAndMakeVisible (recipeBox);
 
     outputKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     outputKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
@@ -189,20 +216,23 @@ void CrockPotEditor::resized()
     outputKnob.setBounds (header.removeFromRight (42));
     meterArea = header.removeFromRight (8).reduced (0, 6);
     header.removeFromRight (6);
-    unshakeButton.setBounds (header.removeFromRight (66).reduced (0, 6));
+    unshakeButton.setBounds (header.removeFromRight (62).reduced (0, 6));
     header.removeFromRight (4);
-    shakeButton.setBounds (header.removeFromRight (100).reduced (0, 4));
-    header.removeFromRight (8);
-    loadButton.setBounds (header.removeFromRight (50).reduced (0, 6));
+    shakeButton.setBounds (header.removeFromRight (64).reduced (0, 4));
+    header.removeFromRight (6);
+    loadButton.setBounds (header.removeFromRight (48).reduced (0, 6));
     header.removeFromRight (4);
-    saveButton.setBounds (header.removeFromRight (50).reduced (0, 6));
-    header.removeFromRight (8);
+    saveButton.setBounds (header.removeFromRight (48).reduced (0, 6));
+    header.removeFromRight (6);
 
-    // centre-left: tabs after the title space
-    header.removeFromLeft (150);   // title painted here
-    cookTab.setBounds  (header.removeFromLeft (70).reduced (0, 4));
+    // centre-left: tabs + recipes after the title space
+    header.removeFromLeft (140);   // title painted here
+    cookTab.setBounds  (header.removeFromLeft (66).reduced (0, 4));
     header.removeFromLeft (4);
-    splitTab.setBounds (header.removeFromLeft (70).reduced (0, 4));
+    splitTab.setBounds (header.removeFromLeft (66).reduced (0, 4));
+    header.removeFromLeft (8);
+    recipeBox.setBounds (header.removeFromLeft (juce::jmin (140, juce::jmax (60, header.getWidth())))
+                               .reduced (0, 6));
 
     cookPage.setBounds (r);
     splitPage.setBounds (r);
